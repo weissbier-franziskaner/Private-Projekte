@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spiel-Tracker</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --card: #111827;
+        --card-2: #1f2937;
+        --text: #f9fafb;
+        --muted: #9ca3af;
+        --accent: #38bdf8;
+        --accent-2: #818cf8;
+        --success: #34d399;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: Inter, Arial, sans-serif;
+        background: linear-gradient(135deg, var(--bg), #111827 60%, #1e293b);
+        color: var(--text);
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      h1, h2, h3 { margin-top: 0; }
+
+      .hero {
+        background: rgba(17, 24, 39, 0.9);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 20px;
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+      }
+
+      .hero p { color: var(--muted); margin-bottom: 0; }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+
+      .stat-card {
+        background: var(--card);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        padding: 18px;
+      }
+
+      .stat-card .label { color: var(--muted); font-size: 0.9rem; }
+      .stat-card .value { font-size: 1.6rem; font-weight: 700; margin-top: 6px; }
+
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+      .card {
+        background: var(--card);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+      }
+
+      form { display: flex; flex-direction: column; gap: 10px; }
+
+      label { font-weight: 600; color: #e5e7eb; }
+
+      input, button, textarea {
+        font: inherit;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 10px 12px;
+      }
+
+      input, textarea {
+        background: var(--card-2);
+        color: var(--text);
+      }
+
+      textarea { min-height: 80px; resize: vertical; }
+
+      button {
+        cursor: pointer;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        color: white;
+        border: none;
+        font-weight: 700;
+        transition: transform 0.15s ease;
+      }
+
+      button:hover { transform: translateY(-1px); }
+
+      .result-list, .wins-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .result-item, .wins-item {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .muted { color: var(--muted); }
+
+      .pill {
+        display: inline-block;
+        margin-top: 4px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(52, 211, 153, 0.16);
+        color: #bbf7d0;
+        font-size: 0.8rem;
+      }
+
+      .small { font-size: 0.9rem; }
+
+      @media (max-width: 700px) {
+        .container { padding: 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>🎲 Spiel-Tracker für die Runde</h1>
+        <p>Trag hier die Ergebnisse von Wattn, Arschloch, Kniffel und Mensch ärgere Dich nicht ein und verfolge direkt deine Statistiken.</p>
+      </section>
+
+      <section class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Spiele insgesamt</div>
+          <div class="value" id="totalGames">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Meiste Siege</div>
+          <div class="value" id="mostWins">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Letztes Spiel</div>
+          <div class="value" id="lastGame">—</div>
+        </div>
+      </section>
+
+      <div class="card" style="margin-bottom: 16px;">
+        <a href="/api/export/csv" download="spiel-tracker.csv" style="color: #38bdf8; font-weight: 700;">⬇️ CSV exportieren (für Excel)</a>
+      </div>
+
+      <section class="grid" id="gameForms"></section>
+
+      <section class="grid" style="margin-top: 24px;">
+        <div class="card">
+          <h2>Letzte Ergebnisse</h2>
+          <ul class="result-list" id="resultList"></ul>
+        </div>
+        <div class="card">
+          <h2>Statistiken nach Spiel</h2>
+          <ul class="wins-list" id="gameStats"></ul>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const games = ["Wattn", "Arschloch", "Kniffel", "Mensch ärgere Dich nicht"];
+      let entries = [];
+
+      function slugify(value) {
+        return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      }
+
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        return new Intl.DateTimeFormat("de-DE", {
+          dateStyle: "short",
+          timeStyle: "short"
+        }).format(date);
+      }
+
+      function normalizeParticipants(value) {
+        return value.split(",").map((item) => item.trim()).filter(Boolean);
+      }
+
+      async function loadEntries() {
+        const response = await fetch("/api/entries");
+        entries = await response.json();
+        render();
+      }
+
+      function renderForms() {
+        const container = document.getElementById("gameForms");
+        container.innerHTML = games.map((game) => {
+          const id = slugify(game);
+          return `
+            <div class="card">
+              <h3>${game}</h3>
+              <form data-game="${game}">
+                <label for="participants-${id}">Teilnehmer (durch Komma getrennt)</label>
+                <textarea id="participants-${id}" name="participants" placeholder="Anna, Ben, Carla"></textarea>
+                <label for="winner-${id}">Gewinner</label>
+                <input id="winner-${id}" name="winner" type="text" placeholder="Name des Gewinners" />
+                <button type="submit">Ergebnis speichern</button>
+              </form>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function updateSummary() {
+        document.getElementById("totalGames").textContent = entries.length;
+
+        const wins = {};
+        entries.forEach((entry) => {
+          wins[entry.winner] = (wins[entry.winner] || 0) + 1;
+        });
+
+        const topEntry = Object.entries(wins).sort((a, b) => b[1] - a[1])[0];
+        document.getElementById("mostWins").textContent = topEntry ? `${topEntry[0]} (${topEntry[1]})` : "—";
+
+        const lastEntry = entries[entries.length - 1];
+        document.getElementById("lastGame").textContent = lastEntry ? `${lastEntry.game} · ${lastEntry.winner}` : "—";
+      }
+
+      function renderResults() {
+        const list = document.getElementById("resultList");
+        if (!entries.length) {
+          list.innerHTML = `<li class="result-item">Noch keine Ergebnisse gespeichert.</li>`;
+          return;
+        }
+
+        list.innerHTML = entries.slice().reverse().map((entry) => `
+          <li class="result-item">
+            <strong>${entry.game}</strong>
+            <div class="small muted">${formatDate(entry.timestamp)}</div>
+            <div>Teilnehmer: ${entry.participants.join(", ")}</div>
+            <div class="pill">Gewinner: ${entry.winner}</div>
+          </li>
+        `).join("");
+      }
+
+      function renderGameStats() {
+        const list = document.getElementById("gameStats");
+        const stats = games.map((game) => {
+          const gameEntries = entries.filter((entry) => entry.game === game);
+          const wins = {};
+          gameEntries.forEach((entry) => {
+            wins[entry.winner] = (wins[entry.winner] || 0) + 1;
+          });
+          const topWinner = Object.entries(wins).sort((a, b) => b[1] - a[1])[0];
+          return `
+            <li class="wins-item">
+              <strong>${game}</strong>
+              <div class="small muted">Spiele: ${gameEntries.length}</div>
+              <div>Meiste Siege: ${topWinner ? `${topWinner[0]} (${topWinner[1]})` : "—"}</div>
+            </li>
+          `;
+        }).join("");
+
+        list.innerHTML = stats;
+      }
+
+      function render() {
+        updateSummary();
+        renderResults();
+        renderGameStats();
+      }
+
+      async function saveEntry(event) {
+        event.preventDefault();
+        const form = event.target;
+        const game = form.dataset.game;
+        const id = slugify(game);
+        const participants = normalizeParticipants(document.getElementById(`participants-${id}`).value);
+        const winner = document.getElementById(`winner-${id}`).value.trim();
+
+        if (participants.length < 2) {
+          alert("Bitte mindestens zwei Teilnehmer eingeben.");
+          return;
+        }
+
+        if (!winner) {
+          alert("Bitte einen Gewinner eingeben.");
+          return;
+        }
+
+        if (!participants.includes(winner)) {
+          alert("Der Gewinner muss unter den Teilnehmern sein.");
+          return;
+        }
+
+        const response = await fetch("/api/entries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            game,
+            participants,
+            winner,
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+          alert(result.error || "Speichern fehlgeschlagen.");
+          return;
+        }
+
+        form.reset();
+        await loadEntries();
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        renderForms();
+        document.getElementById("gameForms").addEventListener("submit", saveEntry);
+        loadEntries();
+      });
+    </script>
+  </body>
+</html>

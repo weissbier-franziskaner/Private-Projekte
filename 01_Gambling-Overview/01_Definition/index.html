@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spiel-Tracker</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f172a;
+        --card: #111827;
+        --card-2: #1f2937;
+        --text: #f9fafb;
+        --muted: #9ca3af;
+        --accent: #38bdf8;
+        --accent-2: #818cf8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, Arial, sans-serif;
+        background: linear-gradient(135deg, #0f172a, #111827 60%, #1e293b);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+      .hero, .card, .stat-card { background: rgba(17,24,39,0.92); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+      .hero { padding: 24px; margin-bottom: 20px; }
+      .hero p { color: var(--muted); }
+      .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
+      .stat-card { padding: 16px; }
+      .label { color: var(--muted); font-size: 0.9rem; }
+      .value { font-size: 1.5rem; font-weight: 700; margin-top: 6px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+      .card { padding: 18px; }
+      form { display: flex; flex-direction: column; gap: 10px; }
+      label { font-weight: 600; }
+      input, textarea, button { font: inherit; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); padding: 10px 12px; }
+      input, textarea { background: var(--card-2); color: var(--text); }
+      textarea { min-height: 80px; resize: vertical; }
+      button { cursor: pointer; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white; border: none; font-weight: 700; }
+      .actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+      .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(52,211,153,0.16); color: #bbf7d0; font-size: 0.8rem; margin-top: 6px; }
+      ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+      li { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; }
+      .muted { color: var(--muted); }
+      .small { font-size: 0.9rem; }
+      .export-btn { display: inline-block; margin-bottom: 16px; color: #7dd3fc; text-decoration: none; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <section class="hero">
+        <h1>🎲 Spiel-Tracker für Freunde</h1>
+        <p>Trage Ergebnisse für Wattn, Arschloch, Kniffel und Mensch ärgere Dich nicht ein. Die Daten bleiben im Browser deines Geräts gespeichert.</p>
+      </section>
+
+      <section class="stats-grid">
+        <div class="stat-card">
+          <div class="label">Spiele insgesamt</div>
+          <div class="value" id="totalGames">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Meiste Siege</div>
+          <div class="value" id="mostWins">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Letztes Spiel</div>
+          <div class="value" id="lastGame">—</div>
+        </div>
+      </section>
+
+      <a class="export-btn" href="#" id="exportBtn">⬇️ Als CSV exportieren</a>
+
+      <section class="grid" id="gameForms"></section>
+
+      <section class="grid" style="margin-top: 20px;">
+        <div class="card">
+          <h2>Letzte Ergebnisse</h2>
+          <ul id="resultList"></ul>
+        </div>
+        <div class="card">
+          <h2>Statistiken nach Spiel</h2>
+          <ul id="gameStats"></ul>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      const games = ["Wattn", "Arschloch", "Kniffel", "Mensch ärgere Dich nicht"];
+      const storageKey = "game-tracker-data-v1";
+      let entries = JSON.parse(localStorage.getItem(storageKey) || "[]");
+
+      function slugify(value) {
+        return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      }
+
+      function normalizeParticipants(value) {
+        return value.split(",").map((item) => item.trim()).filter(Boolean);
+      }
+
+      function renderForms() {
+        const container = document.getElementById("gameForms");
+        container.innerHTML = games.map((game) => {
+          const id = slugify(game);
+          return `
+            <div class="card">
+              <h3>${game}</h3>
+              <form data-game="${game}">
+                <label for="participants-${id}">Teilnehmer (mit Komma getrennt)</label>
+                <textarea id="participants-${id}" placeholder="Anna, Ben, Carla"></textarea>
+                <label for="winner-${id}">Gewinner</label>
+                <input id="winner-${id}" type="text" placeholder="Name des Gewinners" />
+                <button type="submit">Ergebnis speichern</button>
+              </form>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function saveEntries() {
+        localStorage.setItem(storageKey, JSON.stringify(entries));
+      }
+
+      function updateSummary() {
+        document.getElementById("totalGames").textContent = entries.length;
+        const wins = {};
+        entries.forEach((entry) => {
+          wins[entry.winner] = (wins[entry.winner] || 0) + 1;
+        });
+        const topEntry = Object.entries(wins).sort((a, b) => b[1] - a[1])[0];
+        document.getElementById("mostWins").textContent = topEntry ? `${topEntry[0]} (${topEntry[1]})` : "—";
+        const lastEntry = entries[entries.length - 1];
+        document.getElementById("lastGame").textContent = lastEntry ? `${lastEntry.game} · ${lastEntry.winner}` : "—";
+      }
+
+      function renderResults() {
+        const list = document.getElementById("resultList");
+        if (!entries.length) {
+          list.innerHTML = '<li>Noch keine Ergebnisse gespeichert.</li>';
+          return;
+        }
+        list.innerHTML = entries.slice().reverse().map((entry) => `
+          <li>
+            <strong>${entry.game}</strong>
+            <div class="small muted">${new Date(entry.timestamp).toLocaleString("de-DE")}</div>
+            <div>Teilnehmer: ${entry.participants.join(", ")}</div>
+            <div class="pill">Gewinner: ${entry.winner}</div>
+          </li>
+        `).join("");
+      }
+
+      function renderGameStats() {
+        const list = document.getElementById("gameStats");
+        list.innerHTML = games.map((game) => {
+          const gameEntries = entries.filter((entry) => entry.game === game);
+          const wins = {};
+          gameEntries.forEach((entry) => {
+            wins[entry.winner] = (wins[entry.winner] || 0) + 1;
+          });
+          const topWinner = Object.entries(wins).sort((a, b) => b[1] - a[1])[0];
+          return `
+            <li>
+              <strong>${game}</strong>
+              <div class="small muted">Spiele: ${gameEntries.length}</div>
+              <div>Meiste Siege: ${topWinner ? `${topWinner[0]} (${topWinner[1]})` : "—"}</div>
+            </li>
+          `;
+        }).join("");
+      }
+
+      function render() {
+        updateSummary();
+        renderResults();
+        renderGameStats();
+      }
+
+      function handleSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const game = form.dataset.game;
+        const participants = normalizeParticipants(form.querySelector("textarea").value);
+        const winner = form.querySelector("input").value.trim();
+
+        if (participants.length < 2) {
+          alert("Bitte mindestens zwei Teilnehmer eingeben.");
+          return;
+        }
+        if (!winner) {
+          alert("Bitte einen Gewinner eingeben.");
+          return;
+        }
+        if (!participants.includes(winner)) {
+          alert("Der Gewinner muss unter den Teilnehmern sein.");
+          return;
+        }
+
+        entries.push({ game, participants, winner, timestamp: new Date().toISOString() });
+        saveEntries();
+        form.reset();
+        render();
+      }
+
+      function exportCsv() {
+        const rows = [
+          ["Spiel", "Teilnehmer", "Gewinner", "Zeitstempel"],
+          ...entries.map((entry) => [entry.game, entry.participants.join("; "), entry.winner, entry.timestamp])
+        ];
+        const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "spiel-tracker.csv";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        renderForms();
+        document.getElementById("gameForms").addEventListener("submit", handleSubmit);
+        document.getElementById("exportBtn").addEventListener("click", (event) => {
+          event.preventDefault();
+          exportCsv();
+        });
+        render();
+      });
+    </script>
+  </body>
+</html>
