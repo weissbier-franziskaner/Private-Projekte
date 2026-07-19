@@ -109,11 +109,20 @@
       .legend-item { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.05); }
       .legend-item.active { border-color: rgba(34,211,238,0.3); box-shadow: inset 0 0 0 1px rgba(34,211,238,0.18); }
       .legend-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; display: inline-block; }
-      .bars { display: flex; align-items: flex-end; gap: 10px; height: 180px; margin-top: 8px; }
-      .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      .bars { display: flex; align-items: flex-end; gap: 10px; height: 220px; margin-top: 8px; }
+      .bar-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 8px; height: 100%; }
       .bar { width: 100%; height: 140px; border-radius: 999px 999px 8px 8px; background: linear-gradient(180deg, rgba(34,211,238,0.15), rgba(139,92,246,0.25)); position: relative; overflow: hidden; }
       .bar-fill { position: absolute; inset: auto 0 0 0; border-radius: inherit; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: 0 0 16px rgba(34,211,238,0.25); }
-      .bar-label { font-size: 0.82rem; color: var(--muted); }
+      .bar-label { font-size: 0.82rem; color: var(--muted); min-height: 2.4em; text-align: center; line-height: 1.2; display: flex; align-items: flex-start; justify-content: center; }
+      .leaderboard-list { display: flex; flex-direction: column; gap: 10px; }
+      .leaderboard-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+      .leaderboard-name { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+      .leaderboard-stats { color: var(--muted); white-space: nowrap; font-size: 0.92rem; }
+      .badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+      .badge-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #fef3c7; background: rgba(245,158,11,0.16); border: 1px solid rgba(245,158,11,0.24); }
+      .badge-grid { display: grid; gap: 10px; }
+      .badge-card { padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+      .badge-card strong { display: block; margin-bottom: 4px; }
       .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
       form { display: flex; flex-direction: column; gap: 10px; }
       label { font-weight: 600; }
@@ -124,6 +133,11 @@
       textarea { min-height: 90px; resize: vertical; }
       button { cursor: pointer; }
       .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(52,211,153,0.16); color: #bbf7d0; font-size: 0.8rem; margin-top: 6px; }
+      .participant-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+      .participant-row { display: grid; grid-template-columns: 1.5fr 90px; gap: 8px; }
+      .participant-row input, .participant-row select { width: 100%; }
+      .participant-add { margin-bottom: 8px; }
+      .participant-avatar { appearance: none; }
       ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
       li { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px; }
       .status { margin: 6px 0 14px; padding: 10px 12px; border-radius: 12px; font-weight: 600; display: none; }
@@ -206,6 +220,23 @@
 
         <section class="grid" style="margin-top: 18px;">
           <div class="card">
+            <div class="card-header">
+              <h2>Ranking / Leaderboard</h2>
+              <div class="muted">Sortiert nach Siegen</div>
+            </div>
+            <div class="leaderboard-list" id="leaderboardList"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h2>Badge-Übersicht</h2>
+              <div class="muted">Verfügbare Auszeichnungen</div>
+            </div>
+            <div class="badge-grid" id="badgeOverview"></div>
+          </div>
+        </section>
+
+        <section class="grid" style="margin-top: 18px;">
+          <div class="card">
             <h2>Letzte Ergebnisse</h2>
             <ul id="resultList"></ul>
           </div>
@@ -221,6 +252,13 @@
       const ACCESS_PASSWORD = "spieltracker2026";
       const games = ["Wattn", "Arschloch", "Kniffel", "Mensch ärgere Dich nicht"];
       const chartColors = ["#22d3ee", "#8b5cf6", "#34d399", "#fb7185"];
+      const avatarOptions = ["�", "🐱", "🐰", "🦊", "🐻", "🐼", "🐸", "🐵", "🦁", "🐯", "🦄", "🐷", "🐹", "🐨", "🐧", "🐺", "🐲"];
+      const badgeDefinitions = [
+        { key: "rookie", icon: "🌟", name: "Neon Rookie", description: "Mindestens 1 Sieg", minWins: 1 },
+        { key: "streak", icon: "⚡", name: "Streak Starter", description: "Mindestens 3 Siege", minWins: 3 },
+        { key: "legend", icon: "👑", name: "Night Legend", description: "Mindestens 5 Siege", minWins: 5 },
+        { key: "master", icon: "💎", name: "Table Master", description: "Mindestens 10 Siege", minWins: 10 }
+      ];
       const SUPABASE_URL = "https://xfzupfnbaklvpbyinkpi.supabase.co";
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmenVwZm5iYWtsdnBieWlua3BpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0Mjk4NzUsImV4cCI6MjEwMDAwNTg3NX0.sd-d0B0qJifMhjSu2VxeIV-rCF4vFwID0TqP_p9RX4k";
       let entries = [];
@@ -290,7 +328,7 @@
           },
           body: JSON.stringify({
             game: entry.game,
-            participants: entry.participants.join(";"),
+            participants: entry.participants.map((participant) => `${participant.name}|${participant.avatar}`).join(";"),
             winner: entry.winner,
             created_at: entry.timestamp
           })
@@ -306,8 +344,67 @@
         return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       }
 
+      function createParticipantRow(name = "", avatar = avatarOptions[0]) {
+        const optionMarkup = avatarOptions.map((option) => `<option value="${option}" ${option === avatar ? "selected" : ""}>${option}</option>`).join("");
+        return `
+          <div class="participant-row">
+            <input class="participant-name" type="text" value="${name}" placeholder="Teilnehmer" />
+            <select class="participant-avatar">${optionMarkup}</select>
+          </div>
+        `;
+      }
+
+      function syncAvatarSelects(form) {
+        const selects = Array.from(form.querySelectorAll(".participant-avatar"));
+        selects.forEach((select, index) => {
+          const currentValue = select.value || avatarOptions[0];
+          const otherValues = selects
+            .filter((_, otherIndex) => otherIndex !== index)
+            .map((otherSelect) => otherSelect.value)
+            .filter(Boolean);
+
+          select.innerHTML = avatarOptions.map((option) => {
+            const isDisabled = otherValues.includes(option) && option !== currentValue;
+            return `<option value="${option}" ${option === currentValue ? "selected" : ""} ${isDisabled ? "disabled" : ""}>${option}</option>`;
+          }).join("");
+        });
+      }
+
+      function getNextAvatar(form) {
+        const usedValues = Array.from(form.querySelectorAll(".participant-avatar"))
+          .map((select) => select.value)
+          .filter(Boolean);
+        return avatarOptions.find((option) => !usedValues.includes(option)) || avatarOptions[0];
+      }
+
       function normalizeParticipants(value) {
-        return value.split(",").map((item) => item.trim()).filter(Boolean);
+        if (!value) return [];
+        if (Array.isArray(value)) {
+          return value
+            .map((item) => {
+              if (typeof item === "string") {
+                return { name: item.trim(), avatar: "👤" };
+              }
+              return {
+                name: String(item?.name || "").trim(),
+                avatar: item?.avatar || "👤"
+              };
+            })
+            .filter((item) => item.name);
+        }
+
+        return String(value)
+          .split(";")
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .map((item) => {
+            const [name, avatar] = item.split("|");
+            return {
+              name: (name || item).trim(),
+              avatar: avatar || "👤"
+            };
+          })
+          .filter((item) => item.name);
       }
 
       function renderForms() {
@@ -318,8 +415,11 @@
             <div class="card">
               <h3>${game}</h3>
               <form data-game="${game}">
-                <label for="participants-${id}">Teilnehmer (mit Komma getrennt)</label>
-                <textarea id="participants-${id}" placeholder="Anna, Ben, Carla"></textarea>
+                <label for="participants-${id}">Teilnehmer</label>
+                <div class="participant-list" id="participants-${id}">
+                  ${createParticipantRow("", avatarOptions[0]) + createParticipantRow("", avatarOptions[1])}
+                </div>
+                <button class="btn-secondary participant-add" type="button">Teilnehmer hinzufügen</button>
                 <label for="winner-${id}">Gewinner</label>
                 <input id="winner-${id}" type="text" placeholder="Name des Gewinners" />
                 <button class="btn-primary" type="submit">Ergebnis speichern</button>
@@ -351,9 +451,63 @@
           <li>
             <strong>${entry.game}</strong>
             <div class="muted">${new Date(entry.timestamp).toLocaleString("de-DE")}</div>
-            <div>Teilnehmer: ${entry.participants.join(", ")}</div>
+            <div>Teilnehmer: ${normalizeParticipants(entry.participants).map((participant) => `${participant.avatar} ${participant.name}`).join(", ")}</div>
             <div class="pill">Gewinner: ${entry.winner}</div>
           </li>
+        `).join("");
+      }
+
+      function getPlayerBadges(wins) {
+        return badgeDefinitions.filter((badge) => wins >= badge.minWins);
+      }
+
+      function renderLeaderboard() {
+        const list = document.getElementById("leaderboardList");
+        const stats = {};
+
+        entries.forEach((entry) => {
+          const winner = entry.winner?.trim();
+          if (!winner) return;
+          const participant = normalizeParticipants(entry.participants).find((item) => item.name.toLowerCase() === winner.toLowerCase());
+          if (!stats[winner]) {
+            stats[winner] = { wins: 0, avatar: participant?.avatar || "👤" };
+          }
+          stats[winner].wins += 1;
+          if (!stats[winner].avatar || stats[winner].avatar === "👤") {
+            stats[winner].avatar = participant?.avatar || stats[winner].avatar || "👤";
+          }
+        });
+
+        const rankedPlayers = Object.entries(stats)
+          .sort((a, b) => b[1].wins - a[1].wins || a[0].localeCompare(b[0]))
+          .slice(0, 8);
+
+        if (!rankedPlayers.length) {
+          list.innerHTML = '<div class="muted">Noch keine Sieger-Daten vorhanden.</div>';
+          return;
+        }
+
+        list.innerHTML = rankedPlayers.map(([name, data], index) => {
+          const badges = getPlayerBadges(data.wins);
+          return `
+            <div class="leaderboard-item">
+              <div class="leaderboard-name">
+                <strong>#${index + 1} ${data.avatar} ${name}</strong>
+                ${badges.length ? `<div class="badge-row">${badges.map((badge) => `<span class="badge-pill">${badge.icon} ${badge.name}</span>`).join("")}</div>` : ""}
+              </div>
+              <div class="leaderboard-stats">${data.wins} Siege</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function renderBadgeOverview() {
+        const container = document.getElementById("badgeOverview");
+        container.innerHTML = badgeDefinitions.map((badge) => `
+          <div class="badge-card">
+            <strong>${badge.icon} ${badge.name}</strong>
+            <div class="muted">${badge.description}</div>
+          </div>
         `).join("");
       }
 
@@ -455,6 +609,8 @@
       function render() {
         updateSummary();
         renderResults();
+        renderLeaderboard();
+        renderBadgeOverview();
         renderGameStats();
         renderCharts();
       }
@@ -463,7 +619,13 @@
         event.preventDefault();
         const form = event.target;
         const game = form.dataset.game;
-        const participants = normalizeParticipants(form.querySelector("textarea").value);
+        const participantRows = Array.from(form.querySelectorAll(".participant-row"));
+        const participants = participantRows
+          .map((row) => ({
+            name: row.querySelector(".participant-name").value.trim(),
+            avatar: row.querySelector(".participant-avatar").value || "👤"
+          }))
+          .filter((participant) => participant.name);
         const winner = form.querySelector("input").value.trim();
 
         if (participants.length < 2) {
@@ -474,7 +636,7 @@
           setStatus("Bitte einen Gewinner eingeben.", "error");
           return;
         }
-        if (!participants.includes(winner)) {
+        if (!participants.some((participant) => participant.name.toLowerCase() === winner.toLowerCase())) {
           setStatus("Der Gewinner muss unter den Teilnehmern sein.", "error");
           return;
         }
@@ -496,6 +658,21 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         renderForms();
+        document.querySelectorAll("form").forEach((form) => syncAvatarSelects(form));
+        document.getElementById("gameForms").addEventListener("click", (event) => {
+          if (event.target.classList.contains("participant-add")) {
+            const form = event.target.closest("form");
+            const list = form.querySelector(".participant-list");
+            list.insertAdjacentHTML("beforeend", createParticipantRow("", getNextAvatar(form)));
+            syncAvatarSelects(form);
+          }
+        });
+        document.getElementById("gameForms").addEventListener("change", (event) => {
+          if (event.target.classList.contains("participant-avatar")) {
+            const form = event.target.closest("form");
+            syncAvatarSelects(form);
+          }
+        });
         document.getElementById("unlockBtn").addEventListener("click", unlockApp);
         document.getElementById("passwordInput").addEventListener("keydown", (event) => {
           if (event.key === "Enter") unlockApp();
