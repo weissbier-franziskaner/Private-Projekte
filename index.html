@@ -129,7 +129,6 @@
       .status { margin: 6px 0 14px; padding: 10px 12px; border-radius: 12px; font-weight: 600; display: none; }
       .status.success { display: block; background: rgba(52,211,153,0.14); color: #bbf7d0; }
       .status.error { display: block; background: rgba(251,113,133,0.14); color: #fecaca; }
-      .export-btn { display: inline-block; margin-bottom: 12px; color: #7dd3fc; text-decoration: none; font-weight: 700; }
       @media (max-width: 900px) {
         .dashboard-grid { grid-template-columns: 1fr; }
         .chart-shell { grid-template-columns: 1fr; justify-items: center; }
@@ -151,8 +150,8 @@
     <div class="app-shell" id="appShell">
       <div class="container">
         <section class="hero">
-          <div class="hero-badge">N E O N / G A M E V A U L T</div>
-          <h1>Spiel-Tracker im Future-Look</h1>
+          <div class="hero-badge">GAMBLING MIT DEN JUNGS</div>
+          <h1>Übersicht</h1>
           <p>Ergebnisse aus Wattn, Arschloch, Kniffel und Mensch ärgere Dich nicht werden hier in einer gemeinsamen Supabase-Datenbank festgehalten und mit lebendigen Statistiken visualisiert.</p>
           <div class="hero-actions">
             <button class="btn-secondary" id="logoutBtn">Logout</button>
@@ -201,7 +200,6 @@
           </div>
         </section>
 
-        <a class="export-btn" href="#" id="exportBtn">⬇️ Als CSV exportieren</a>
         <div class="status" id="statusMessage" role="status" aria-live="polite"></div>
 
         <section class="grid" id="gameForms"></section>
@@ -496,21 +494,6 @@
         }
       }
 
-      function exportCsv() {
-        const rows = [
-          ["Spiel", "Teilnehmer", "Gewinner", "Zeitstempel"],
-          ...entries.map((entry) => [entry.game, entry.participants.join("; "), entry.winner, entry.timestamp])
-        ];
-        const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "spiel-tracker.csv";
-        link.click();
-        URL.revokeObjectURL(url);
-      }
-
       document.addEventListener("DOMContentLoaded", () => {
         renderForms();
         document.getElementById("unlockBtn").addEventListener("click", unlockApp);
@@ -523,10 +506,6 @@
         });
         document.getElementById("gameForms").addEventListener("submit", (event) => {
           handleSubmit(event);
-        });
-        document.getElementById("exportBtn").addEventListener("click", (event) => {
-          event.preventDefault();
-          exportCsv();
         });
         if (isAuthenticated()) {
           showApp();
