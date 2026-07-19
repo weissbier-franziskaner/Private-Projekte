@@ -74,7 +74,7 @@
       </section>
 
       <a class="export-btn" href="#" id="exportBtn">⬇️ Als CSV exportieren</a>
-      <div class="status" id="statusMessage"></div>
+      <div class="status" id="statusMessage" role="status" aria-live="polite"></div>
 
       <section class="grid" id="gameForms"></section>
 
@@ -223,12 +223,14 @@
 
       function setStatus(message, type = "success") {
         const status = document.getElementById("statusMessage");
+        if (!status) return;
         status.textContent = message;
         status.className = `status ${type}`;
       }
 
       function clearStatus() {
         const status = document.getElementById("statusMessage");
+        if (!status) return;
         status.textContent = "";
         status.className = "status";
       }
