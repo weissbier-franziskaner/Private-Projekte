@@ -93,24 +93,34 @@
       let entries = [];
 
       async function loadEntries() {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/game_results?order=created_at.desc`, {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/game_results?order=created_at.desc`, {
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          });
+          if (!response.ok) {
+            throw new Error(`Laden fehlgeschlagen: ${response.status}`);
           }
-        });
-        const data = await response.json();
-        entries = data.map((row) => ({
-          game: row.game,
-          participants: row.participants.split(";"),
-          winner: row.winner,
-          timestamp: row.created_at
-        }));
+          const data = await response.json();
+          entries = Array.isArray(data)
+            ? data.map((row) => ({
+                game: row.game,
+                participants: typeof row.participants === "string" ? row.participants.split(";") : [],
+                winner: row.winner,
+                timestamp: row.created_at
+              }))
+            : [];
+        } catch (error) {
+          console.error(error);
+          entries = [];
+        }
         render();
       }
 
       async function saveEntry(entry) {
-        await fetch(`${SUPABASE_URL}/rest/v1/game_results`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/game_results`, {
           method: "POST",
           headers: {
             apikey: SUPABASE_ANON_KEY,
@@ -125,6 +135,11 @@
             created_at: entry.timestamp
           })
         });
+        const resultText = await response.text();
+        if (!response.ok) {
+          throw new Error(`Speichern fehlgeschlagen: ${response.status} ${resultText}`);
+        }
+        return resultText;
       }
 
       function slugify(value) {
@@ -227,11 +242,17 @@
           return;
         }
 
-        const entry = { game, participants, winner, timestamp: new Date().toISOString() };
-        await saveEntry(entry);
-        entries.unshift(entry);
-        form.reset();
-        render();
+        try {
+          const entry = { game, participants, winner, timestamp: new Date().toISOString() };
+          await saveEntry(entry);
+          entries.unshift(entry);
+          form.reset();
+          render();
+          alert("Ergebnis wurde gespeichert.");
+        } catch (error) {
+          console.error(error);
+          alert("Das Speichern war nicht erfolgreich. Prüfe die Supabase-Policies und den Anon-Key.");
+        }
       }
 
       function exportCsv() {
