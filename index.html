@@ -3,98 +3,256 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Spiel-Tracker</title>
+    <title>Neon Game Vault</title>
     <style>
       :root {
         color-scheme: dark;
-        --bg: #0f172a;
-        --card: #111827;
-        --card-2: #1f2937;
-        --text: #f9fafb;
-        --muted: #9ca3af;
-        --accent: #38bdf8;
-        --accent-2: #818cf8;
+        --bg: #040816;
+        --panel: rgba(8, 15, 35, 0.82);
+        --panel-2: rgba(15, 23, 42, 0.95);
+        --text: #e6f7ff;
+        --muted: #86a8c3;
+        --accent: #22d3ee;
+        --accent-2: #8b5cf6;
+        --success: #34d399;
+        --danger: #fb7185;
       }
       * { box-sizing: border-box; }
       body {
         margin: 0;
         font-family: Inter, Arial, sans-serif;
-        background: linear-gradient(135deg, #0f172a, #111827 60%, #1e293b);
-        color: var(--text);
         min-height: 100vh;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(34,211,238,0.16), transparent 24%),
+          radial-gradient(circle at bottom right, rgba(139,92,246,0.2), transparent 28%),
+          linear-gradient(135deg, #02050f 0%, #050b1f 45%, #070d20 100%);
+        overflow-x: hidden;
       }
-      .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-      .hero, .card, .stat-card { background: rgba(17,24,39,0.92); border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
-      .hero { padding: 24px; margin-bottom: 20px; }
-      .hero p { color: var(--muted); }
-      .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 20px; }
-      .stat-card { padding: 16px; }
-      .label { color: var(--muted); font-size: 0.9rem; }
-      .value { font-size: 1.5rem; font-weight: 700; margin-top: 6px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 30px 30px;
+        mask-image: linear-gradient(to bottom, rgba(0,0,0,0.4), transparent 90%);
+      }
+      .auth-screen {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .auth-card {
+        width: min(420px, 100%);
+        padding: 26px;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: var(--panel);
+        box-shadow: 0 18px 60px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.04);
+        backdrop-filter: blur(18px);
+      }
+      .auth-card h1 { margin: 0 0 10px; font-size: 1.5rem; }
+      .auth-card p { color: var(--muted); margin: 0 0 16px; }
+      .auth-card input {
+        width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.05); color: var(--text); margin-bottom: 10px;
+      }
+      .auth-card button, .btn-primary, .btn-secondary {
+        border: none; border-radius: 999px; padding: 10px 14px; font-weight: 700; cursor: pointer;
+        color: white; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      }
+      .btn-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.12); }
+      .auth-error { min-height: 20px; color: var(--danger); font-size: 0.95rem; margin-top: 8px; }
+      .app-shell { display: none; }
+      .container { max-width: 1300px; margin: 0 auto; padding: 24px 20px 48px; }
+      .hero, .card, .stat-card {
+        position: relative;
+        background: linear-gradient(145deg, rgba(8, 15, 35, 0.95), rgba(10, 18, 38, 0.9));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 24px;
+        box-shadow: 0 18px 60px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.04);
+        backdrop-filter: blur(18px);
+      }
+      .hero { padding: 24px; margin-bottom: 18px; overflow: hidden; }
+      .hero::after {
+        content: "";
+        position: absolute; inset: -30% 60% auto auto; width: 260px; height: 260px; background: radial-gradient(circle, rgba(34,211,238,0.22), transparent 70%);
+        filter: blur(6px);
+      }
+      .hero-badge { display: inline-block; padding: 6px 10px; border-radius: 999px; color: #a5f3fc; background: rgba(34,211,238,0.15); border: 1px solid rgba(34,211,238,0.2); font-size: 0.76rem; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 10px; }
+      .hero h1 { margin: 0 0 8px; font-size: clamp(1.8rem, 3vw, 2.7rem); }
+      .hero p { margin: 0; color: var(--muted); max-width: 700px; line-height: 1.6; }
+      .hero-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+      .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 18px; }
+      .stat-card { padding: 16px 18px; }
+      .label { color: var(--muted); font-size: 0.87rem; text-transform: uppercase; letter-spacing: 0.12em; }
+      .value { font-size: 1.45rem; font-weight: 700; margin-top: 8px; }
+      .dashboard-grid { display: grid; grid-template-columns: 1.25fr 0.9fr; gap: 18px; margin-bottom: 18px; }
       .card { padding: 18px; }
+      .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+      .card-header h2 { margin: 0; font-size: 1rem; }
+      .muted { color: var(--muted); }
+      .chart-shell { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: center; }
+      .donut-chart {
+        width: 220px; height: 220px; border-radius: 50%; padding: 16px; background: conic-gradient(var(--accent) 0 25%, var(--accent-2) 25% 55%, var(--success) 55% 80%, var(--danger) 80% 100%);
+        box-shadow: inset 0 0 30px rgba(0,0,0,0.35), 0 0 30px rgba(34,211,238,0.12);
+        position: relative;
+      }
+      .donut-chart::after {
+        content: "";
+        position: absolute; inset: 34px; border-radius: 50%; background: rgba(4,8,22,0.95); box-shadow: inset 0 0 20px rgba(255,255,255,0.04);
+      }
+      .chart-core { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; text-align: center; font-weight: 700; }
+      .legend { display: flex; flex-direction: column; gap: 10px; }
+      .legend-item { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.05); }
+      .legend-item.active { border-color: rgba(34,211,238,0.3); box-shadow: inset 0 0 0 1px rgba(34,211,238,0.18); }
+      .legend-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; display: inline-block; }
+      .bars { display: flex; align-items: flex-end; gap: 10px; height: 180px; margin-top: 8px; }
+      .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      .bar { width: 100%; height: 140px; border-radius: 999px 999px 8px 8px; background: linear-gradient(180deg, rgba(34,211,238,0.15), rgba(139,92,246,0.25)); position: relative; overflow: hidden; }
+      .bar-fill { position: absolute; inset: auto 0 0 0; border-radius: inherit; background: linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow: 0 0 16px rgba(34,211,238,0.25); }
+      .bar-label { font-size: 0.82rem; color: var(--muted); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
       form { display: flex; flex-direction: column; gap: 10px; }
       label { font-weight: 600; }
-      input, textarea, button { font: inherit; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); padding: 10px 12px; }
-      input, textarea { background: var(--card-2); color: var(--text); }
-      textarea { min-height: 80px; resize: vertical; }
-      button { cursor: pointer; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white; border: none; font-weight: 700; }
-      .actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+      input, textarea, button { font: inherit; }
+      input, textarea {
+        width: 100%; padding: 11px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: var(--text);
+      }
+      textarea { min-height: 90px; resize: vertical; }
+      button { cursor: pointer; }
       .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(52,211,153,0.16); color: #bbf7d0; font-size: 0.8rem; margin-top: 6px; }
       ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-      li { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; }
-      .muted { color: var(--muted); }
-      .small { font-size: 0.9rem; }
-      .export-btn { display: inline-block; margin-bottom: 16px; color: #7dd3fc; text-decoration: none; font-weight: 700; }
-      .status { margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; font-weight: 600; display: none; }
-      .status.success { display: block; background: rgba(34,197,94,0.16); color: #bbf7d0; }
-      .status.error { display: block; background: rgba(248,113,113,0.16); color: #fecaca; }
+      li { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px; }
+      .status { margin: 6px 0 14px; padding: 10px 12px; border-radius: 12px; font-weight: 600; display: none; }
+      .status.success { display: block; background: rgba(52,211,153,0.14); color: #bbf7d0; }
+      .status.error { display: block; background: rgba(251,113,133,0.14); color: #fecaca; }
+      .export-btn { display: inline-block; margin-bottom: 12px; color: #7dd3fc; text-decoration: none; font-weight: 700; }
+      @media (max-width: 900px) {
+        .dashboard-grid { grid-template-columns: 1fr; }
+        .chart-shell { grid-template-columns: 1fr; justify-items: center; }
+      }
     </style>
   </head>
   <body>
-    <div class="container">
-      <section class="hero">
-        <h1>🎲 Spiel-Tracker für Freunde</h1>
-        <p>Trage Ergebnisse für Wattn, Arschloch, Kniffel und Mensch ärgere Dich nicht ein. Die Daten werden jetzt in einer gemeinsamen Supabase-Datenbank gespeichert.</p>
-      </section>
+    <div class="auth-screen" id="authScreen">
+      <div class="auth-card">
+        <div class="hero-badge">Neon Access</div>
+        <h1>Bitte Passwort eingeben</h1>
+        <p>Dieser Bereich ist nur für autorisierte Nutzer zugänglich.</p>
+        <input id="passwordInput" type="password" placeholder="Passwort" />
+        <button class="btn-primary" id="unlockBtn">Entrieren</button>
+        <div class="auth-error" id="authError"></div>
+      </div>
+    </div>
 
-      <section class="stats-grid">
-        <div class="stat-card">
-          <div class="label">Spiele insgesamt</div>
-          <div class="value" id="totalGames">0</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Meiste Siege</div>
-          <div class="value" id="mostWins">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Letztes Spiel</div>
-          <div class="value" id="lastGame">—</div>
-        </div>
-      </section>
+    <div class="app-shell" id="appShell">
+      <div class="container">
+        <section class="hero">
+          <div class="hero-badge">N E O N / G A M E V A U L T</div>
+          <h1>Spiel-Tracker im Future-Look</h1>
+          <p>Ergebnisse aus Wattn, Arschloch, Kniffel und Mensch ärgere Dich nicht werden hier in einer gemeinsamen Supabase-Datenbank festgehalten und mit lebendigen Statistiken visualisiert.</p>
+          <div class="hero-actions">
+            <button class="btn-secondary" id="logoutBtn">Logout</button>
+          </div>
+        </section>
 
-      <a class="export-btn" href="#" id="exportBtn">⬇️ Als CSV exportieren</a>
-      <div class="status" id="statusMessage" role="status" aria-live="polite"></div>
+        <section class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Spiele insgesamt</div>
+            <div class="value" id="totalGames">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Meiste Siege</div>
+            <div class="value" id="mostWins">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Letztes Spiel</div>
+            <div class="value" id="lastGame">—</div>
+          </div>
+        </section>
 
-      <section class="grid" id="gameForms"></section>
+        <section class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <h2>Spiel-Verteilung</h2>
+              <div class="muted" id="chartInfo">Klicke auf ein Spiel</div>
+            </div>
+            <div class="chart-shell">
+              <div class="donut-chart" id="donutChart">
+                <div class="chart-core">
+                  <div>
+                    <div id="chartCoreValue">0</div>
+                    <div class="muted" id="chartCoreLabel">Einträge</div>
+                  </div>
+                </div>
+              </div>
+              <div class="legend" id="legend"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h2>Aktivitätspulse</h2>
+              <div class="muted" id="pulseLabel">Sieg-Rate</div>
+            </div>
+            <div class="bars" id="barChart"></div>
+          </div>
+        </section>
 
-      <section class="grid" style="margin-top: 20px;">
-        <div class="card">
-          <h2>Letzte Ergebnisse</h2>
-          <ul id="resultList"></ul>
-        </div>
-        <div class="card">
-          <h2>Statistiken nach Spiel</h2>
-          <ul id="gameStats"></ul>
-        </div>
-      </section>
+        <a class="export-btn" href="#" id="exportBtn">⬇️ Als CSV exportieren</a>
+        <div class="status" id="statusMessage" role="status" aria-live="polite"></div>
+
+        <section class="grid" id="gameForms"></section>
+
+        <section class="grid" style="margin-top: 18px;">
+          <div class="card">
+            <h2>Letzte Ergebnisse</h2>
+            <ul id="resultList"></ul>
+          </div>
+          <div class="card">
+            <h2>Statistiken nach Spiel</h2>
+            <ul id="gameStats"></ul>
+          </div>
+        </section>
+      </div>
     </div>
 
     <script>
+      const ACCESS_PASSWORD = "spieltracker2026";
       const games = ["Wattn", "Arschloch", "Kniffel", "Mensch ärgere Dich nicht"];
+      const chartColors = ["#22d3ee", "#8b5cf6", "#34d399", "#fb7185"];
       const SUPABASE_URL = "https://xfzupfnbaklvpbyinkpi.supabase.co";
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmenVwZm5iYWtsdnBieWlua3BpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0Mjk4NzUsImV4cCI6MjEwMDAwNTg3NX0.sd-d0B0qJifMhjSu2VxeIV-rCF4vFwID0TqP_p9RX4k";
       let entries = [];
+      let activeGame = null;
+
+      function isAuthenticated() {
+        return sessionStorage.getItem("neon-game-vault-auth") === "true";
+      }
+
+      function showAuth() {
+        document.getElementById("authScreen").style.display = "grid";
+        document.getElementById("appShell").style.display = "none";
+      }
+
+      function showApp() {
+        document.getElementById("authScreen").style.display = "none";
+        document.getElementById("appShell").style.display = "block";
+      }
+
+      function unlockApp() {
+        const password = document.getElementById("passwordInput").value;
+        if (password === ACCESS_PASSWORD) {
+          sessionStorage.setItem("neon-game-vault-auth", "true");
+          showApp();
+          document.getElementById("passwordInput").value = "";
+          document.getElementById("authError").textContent = "";
+        } else {
+          document.getElementById("authError").textContent = "Falsches Passwort.";
+        }
+      }
 
       async function loadEntries() {
         try {
@@ -108,7 +266,6 @@
             throw new Error(`Laden fehlgeschlagen: ${response.status}`);
           }
           const data = await response.json();
-          console.log("Supabase load response:", data);
           entries = Array.isArray(data)
             ? data.map((row) => ({
                 game: row.game,
@@ -167,14 +324,14 @@
                 <textarea id="participants-${id}" placeholder="Anna, Ben, Carla"></textarea>
                 <label for="winner-${id}">Gewinner</label>
                 <input id="winner-${id}" type="text" placeholder="Name des Gewinners" />
-                <button type="submit">Ergebnis speichern</button>
+                <button class="btn-primary" type="submit">Ergebnis speichern</button>
               </form>
             </div>
           `;
         }).join("");
       }
 
-      async function updateSummary() {
+      function updateSummary() {
         document.getElementById("totalGames").textContent = entries.length;
         const wins = {};
         entries.forEach((entry) => {
@@ -195,7 +352,7 @@
         list.innerHTML = entries.slice().reverse().map((entry) => `
           <li>
             <strong>${entry.game}</strong>
-            <div class="small muted">${new Date(entry.timestamp).toLocaleString("de-DE")}</div>
+            <div class="muted">${new Date(entry.timestamp).toLocaleString("de-DE")}</div>
             <div>Teilnehmer: ${entry.participants.join(", ")}</div>
             <div class="pill">Gewinner: ${entry.winner}</div>
           </li>
@@ -214,9 +371,71 @@
           return `
             <li>
               <strong>${game}</strong>
-              <div class="small muted">Spiele: ${gameEntries.length}</div>
+              <div class="muted">Spiele: ${gameEntries.length}</div>
               <div>Meiste Siege: ${topWinner ? `${topWinner[0]} (${topWinner[1]})` : "—"}</div>
             </li>
+          `;
+        }).join("");
+      }
+
+      function renderCharts() {
+        const counts = games.map((game) => entries.filter((entry) => entry.game === game).length);
+        const total = counts.reduce((sum, value) => sum + value, 0);
+        const donut = document.getElementById("donutChart");
+        const chartCoreValue = document.getElementById("chartCoreValue");
+        const chartCoreLabel = document.getElementById("chartCoreLabel");
+        const legend = document.getElementById("legend");
+        const barChart = document.getElementById("barChart");
+        const chartInfo = document.getElementById("chartInfo");
+        const pulseLabel = document.getElementById("pulseLabel");
+
+        let start = 0;
+        const segments = counts.map((count, index) => {
+          const end = start + (total ? (count / total) * 100 : 0);
+          const segment = `${chartColors[index]} ${start.toFixed(2)}% ${end.toFixed(2)}%`;
+          start = end;
+          return segment;
+        }).join(", ");
+
+        donut.style.background = `conic-gradient(${segments})`;
+        chartCoreValue.textContent = total;
+        chartCoreLabel.textContent = total === 1 ? "Eintrag" : "Einträge";
+
+        legend.innerHTML = games.map((game, index) => {
+          const count = counts[index];
+          const isActive = activeGame === null ? index === 0 : game === activeGame;
+          return `
+            <div class="legend-item ${isActive ? "active" : ""}" data-game="${game}">
+              <span><span class="legend-dot" style="background:${chartColors[index]}"></span>${game}</span>
+              <strong>${count}</strong>
+            </div>
+          `;
+        }).join("");
+
+        legend.querySelectorAll(".legend-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            activeGame = item.dataset.game;
+            chartInfo.textContent = `${activeGame} ausgewählt`;
+            renderCharts();
+          });
+        });
+
+        const selectedCount = activeGame ? counts[games.indexOf(activeGame)] : total;
+        const selectedLabel = activeGame || "Gesamt";
+        chartInfo.textContent = activeGame ? `${selectedLabel} aktiv` : "Gesamtüberblick";
+        pulseLabel.textContent = `${selectedLabel} · ${selectedCount} Einträge`;
+
+        const maxValue = Math.max(1, ...counts);
+        barChart.innerHTML = games.map((game, index) => {
+          const value = counts[index];
+          const percent = Math.max(12, (value / maxValue) * 100);
+          return `
+            <div class="bar-wrap">
+              <div class="bar">
+                <div class="bar-fill" style="height:${percent}%"></div>
+              </div>
+              <div class="bar-label">${game}</div>
+            </div>
           `;
         }).join("");
       }
@@ -239,6 +458,7 @@
         updateSummary();
         renderResults();
         renderGameStats();
+        renderCharts();
       }
 
       async function handleSubmit(event) {
@@ -249,15 +469,15 @@
         const winner = form.querySelector("input").value.trim();
 
         if (participants.length < 2) {
-          alert("Bitte mindestens zwei Teilnehmer eingeben.");
+          setStatus("Bitte mindestens zwei Teilnehmer eingeben.", "error");
           return;
         }
         if (!winner) {
-          alert("Bitte einen Gewinner eingeben.");
+          setStatus("Bitte einen Gewinner eingeben.", "error");
           return;
         }
         if (!participants.includes(winner)) {
-          alert("Der Gewinner muss unter den Teilnehmern sein.");
+          setStatus("Der Gewinner muss unter den Teilnehmern sein.", "error");
           return;
         }
 
@@ -265,8 +485,7 @@
           clearStatus();
           setStatus("Speichere Ergebnis…", "success");
           const entry = { game, participants, winner, timestamp: new Date().toISOString() };
-          const resultText = await saveEntry(entry);
-          console.log("Supabase save response:", resultText);
+          await saveEntry(entry);
           entries.unshift(entry);
           form.reset();
           render();
@@ -294,6 +513,14 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         renderForms();
+        document.getElementById("unlockBtn").addEventListener("click", unlockApp);
+        document.getElementById("passwordInput").addEventListener("keydown", (event) => {
+          if (event.key === "Enter") unlockApp();
+        });
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          sessionStorage.removeItem("neon-game-vault-auth");
+          showAuth();
+        });
         document.getElementById("gameForms").addEventListener("submit", (event) => {
           handleSubmit(event);
         });
@@ -301,6 +528,11 @@
           event.preventDefault();
           exportCsv();
         });
+        if (isAuthenticated()) {
+          showApp();
+        } else {
+          showAuth();
+        }
         loadEntries();
       });
     </script>
