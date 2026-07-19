@@ -39,19 +39,23 @@
       input, textarea { background: var(--card-2); color: var(--text); }
       textarea { min-height: 80px; resize: vertical; }
       button { cursor: pointer; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: white; border: none; font-weight: 700; }
+      .actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+      .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(52,211,153,0.16); color: #bbf7d0; font-size: 0.8rem; margin-top: 6px; }
       ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
       li { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; }
-      .pill { display: inline-block; padding: 4px 8px; border-radius: 999px; background: rgba(52,211,153,0.16); color: #bbf7d0; font-size: 0.8rem; margin-top: 6px; }
       .muted { color: var(--muted); }
       .small { font-size: 0.9rem; }
       .export-btn { display: inline-block; margin-bottom: 16px; color: #7dd3fc; text-decoration: none; font-weight: 700; }
+      .status { margin-bottom: 16px; padding: 10px 12px; border-radius: 10px; font-weight: 600; display: none; }
+      .status.success { display: block; background: rgba(34,197,94,0.16); color: #bbf7d0; }
+      .status.error { display: block; background: rgba(248,113,113,0.16); color: #fecaca; }
     </style>
   </head>
   <body>
     <div class="container">
       <section class="hero">
         <h1>🎲 Spiel-Tracker für Freunde</h1>
-        <p>Trage Ergebnisse für Wattn, Arschloch, Kniffel und Mensch ärgere Dich nicht ein. Die Daten bleiben im Browser deines Geräts gespeichert.</p>
+        <p>Trage Ergebnisse für Wattn, Arschloch, Kniffel und Mensch ärgere Dich nicht ein. Die Daten werden jetzt in einer gemeinsamen Supabase-Datenbank gespeichert.</p>
       </section>
 
       <section class="stats-grid">
@@ -70,6 +74,7 @@
       </section>
 
       <a class="export-btn" href="#" id="exportBtn">⬇️ Als CSV exportieren</a>
+      <div class="status" id="statusMessage" role="status" aria-live="polite"></div>
 
       <section class="grid" id="gameForms"></section>
 
@@ -87,8 +92,60 @@
 
     <script>
       const games = ["Wattn", "Arschloch", "Kniffel", "Mensch ärgere Dich nicht"];
-      const storageKey = "game-tracker-data-v1";
-      let entries = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      const SUPABASE_URL = "https://xfzupfnbaklvpbyinkpi.supabase.co";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmenVwZm5iYWtsdnBieWlua3BpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ0Mjk4NzUsImV4cCI6MjEwMDAwNTg3NX0.sd-d0B0qJifMhjSu2VxeIV-rCF4vFwID0TqP_p9RX4k";
+      let entries = [];
+
+      async function loadEntries() {
+        try {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/game_results?order=created_at.desc&select=*`, {
+            headers: {
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+            }
+          });
+          if (!response.ok) {
+            throw new Error(`Laden fehlgeschlagen: ${response.status}`);
+          }
+          const data = await response.json();
+          console.log("Supabase load response:", data);
+          entries = Array.isArray(data)
+            ? data.map((row) => ({
+                game: row.game,
+                participants: typeof row.participants === "string" ? row.participants.split(";") : [],
+                winner: row.winner,
+                timestamp: row.created_at || row.createdAt || new Date().toISOString()
+              }))
+            : [];
+        } catch (error) {
+          console.error(error);
+          entries = [];
+        }
+        render();
+      }
+
+      async function saveEntry(entry) {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/game_results`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation"
+          },
+          body: JSON.stringify({
+            game: entry.game,
+            participants: entry.participants.join(";"),
+            winner: entry.winner,
+            created_at: entry.timestamp
+          })
+        });
+        const responseText = await response.text();
+        if (!response.ok) {
+          throw new Error(`Speichern fehlgeschlagen: ${response.status} ${responseText}`);
+        }
+        return responseText;
+      }
 
       function slugify(value) {
         return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -117,11 +174,7 @@
         }).join("");
       }
 
-      function saveEntries() {
-        localStorage.setItem(storageKey, JSON.stringify(entries));
-      }
-
-      function updateSummary() {
+      async function updateSummary() {
         document.getElementById("totalGames").textContent = entries.length;
         const wins = {};
         entries.forEach((entry) => {
@@ -168,13 +221,27 @@
         }).join("");
       }
 
+      function setStatus(message, type = "success") {
+        const status = document.getElementById("statusMessage");
+        if (!status) return;
+        status.textContent = message;
+        status.className = `status ${type}`;
+      }
+
+      function clearStatus() {
+        const status = document.getElementById("statusMessage");
+        if (!status) return;
+        status.textContent = "";
+        status.className = "status";
+      }
+
       function render() {
         updateSummary();
         renderResults();
         renderGameStats();
       }
 
-      function handleSubmit(event) {
+      async function handleSubmit(event) {
         event.preventDefault();
         const form = event.target;
         const game = form.dataset.game;
@@ -194,10 +261,20 @@
           return;
         }
 
-        entries.push({ game, participants, winner, timestamp: new Date().toISOString() });
-        saveEntries();
-        form.reset();
-        render();
+        try {
+          clearStatus();
+          setStatus("Speichere Ergebnis…", "success");
+          const entry = { game, participants, winner, timestamp: new Date().toISOString() };
+          const resultText = await saveEntry(entry);
+          console.log("Supabase save response:", resultText);
+          entries.unshift(entry);
+          form.reset();
+          render();
+          setStatus("Ergebnis wurde gespeichert.", "success");
+        } catch (error) {
+          console.error(error);
+          setStatus("Speichern fehlgeschlagen. Prüfe Supabase-Policies und Anon-Key.", "error");
+        }
       }
 
       function exportCsv() {
@@ -217,12 +294,14 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         renderForms();
-        document.getElementById("gameForms").addEventListener("submit", handleSubmit);
+        document.getElementById("gameForms").addEventListener("submit", (event) => {
+          handleSubmit(event);
+        });
         document.getElementById("exportBtn").addEventListener("click", (event) => {
           event.preventDefault();
           exportCsv();
         });
-        render();
+        loadEntries();
       });
     </script>
   </body>
