@@ -94,7 +94,7 @@
 
       async function loadEntries() {
         try {
-          const response = await fetch(`${SUPABASE_URL}/rest/v1/game_results?order=created_at.desc`, {
+          const response = await fetch(`${SUPABASE_URL}/rest/v1/game_results?order=created_at.desc&select=*`, {
             headers: {
               apikey: SUPABASE_ANON_KEY,
               Authorization: `Bearer ${SUPABASE_ANON_KEY}`
@@ -104,12 +104,13 @@
             throw new Error(`Laden fehlgeschlagen: ${response.status}`);
           }
           const data = await response.json();
+          console.log("Supabase load response:", data);
           entries = Array.isArray(data)
             ? data.map((row) => ({
                 game: row.game,
                 participants: typeof row.participants === "string" ? row.participants.split(";") : [],
                 winner: row.winner,
-                timestamp: row.created_at
+                timestamp: row.created_at || row.createdAt || new Date().toISOString()
               }))
             : [];
         } catch (error) {
@@ -135,11 +136,11 @@
             created_at: entry.timestamp
           })
         });
-        const resultText = await response.text();
+        const responseText = await response.text();
         if (!response.ok) {
-          throw new Error(`Speichern fehlgeschlagen: ${response.status} ${resultText}`);
+          throw new Error(`Speichern fehlgeschlagen: ${response.status} ${responseText}`);
         }
-        return resultText;
+        return responseText;
       }
 
       function slugify(value) {
@@ -244,7 +245,8 @@
 
         try {
           const entry = { game, participants, winner, timestamp: new Date().toISOString() };
-          await saveEntry(entry);
+          const resultText = await saveEntry(entry);
+          console.log("Supabase save response:", resultText);
           entries.unshift(entry);
           form.reset();
           render();
